@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="경로최적화">
+<meta name="theme-color" content="#0f1117">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.svg">
+<title>납품 경로 최적화</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0f1117; --surface:#1a1d27; --surface2:#22263a;
+  --border:rgba(255,255,255,0.08); --border2:rgba(255,255,255,0.15);
+  --text:#f0f2ff; --muted:#6b7280;
+  --green:#4ade80; --green-dim:rgba(74,222,128,0.12);
+  --blue:#60a5fa; --blue-dim:rgba(96,165,250,0.12);
+  --amber:#fbbf24; --red:#f87171;
+  --radius:14px; --radius-sm:8px;
+  --safe-top:env(safe-area-inset-top,0px);
+  --safe-bottom:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-serif;overflow:hidden;}
+#app{display:flex;flex-direction:column;height:100vh;height:100dvh;}
+#header{padding:calc(var(--safe-top) + 16px) 20px 14px;background:var(--bg);border-bottom:0.5px solid var(--border);flex-shrink:0;}
+#header h1{font-size:17px;font-weight:700;letter-spacing:-0.3px;}
+#header p{font-size:12px;color:var(--muted);margin-top:2px;}
+#tab-bar{display:flex;background:var(--bg);border-bottom:0.5px solid var(--border);flex-shrink:0;padding:0 16px;}
+.tab-btn{flex:1;padding:12px 8px;font-size:13px;font-weight:500;color:var(--muted);background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;font-family:inherit;transition:all .2s;}
+.tab-btn.active{color:var(--green);border-bottom-color:var(--green);}
+#content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:calc(var(--safe-bottom) + 80px);}
+.section{padding:20px 16px 0;}
+.section-label{font-size:11px;font-weight:500;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;margin-bottom:10px;}
+.chip-grid{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px;}
+.chip{padding:7px 14px;border-radius:20px;font-size:13px;font-weight:500;border:1px solid var(--border2);background:var(--surface);color:var(--text);cursor:pointer;transition:all .15s;user-select:none;}
+.chip.sel-f{background:var(--green-dim);border-color:var(--green);color:var(--green);}
+.chip.sel-c{background:var(--blue-dim);border-color:var(--blue);color:var(--blue);}
+.chip:active{transform:scale(.95);}
+.no-places{font-size:13px;color:var(--muted);padding:4px 0 8px;display:block;}
+.add-row-btn{width:100%;padding:10px;font-size:13px;color:var(--muted);background:none;border:1px dashed var(--border2);border-radius:var(--radius-sm);cursor:pointer;font-family:inherit;margin-top:2px;}
+.add-row-btn:active{background:var(--surface);}
+#calc-btn{margin:20px 16px 0;width:calc(100% - 32px);padding:16px;background:var(--green);color:#0a1a0a;font-family:inherit;font-size:15px;font-weight:700;border:none;border-radius:var(--radius);cursor:pointer;transition:all .15s;}
+#calc-btn:active{transform:scale(.97);}
+#result-area{padding:16px;}
+.result-box{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:12px;}
+.result-header{padding:14px 16px;border-bottom:0.5px solid var(--border);}
+.result-header h3{font-size:13px;font-weight:500;color:var(--muted);}
+.route-step{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:0.5px solid var(--border);}
+.step-icon{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;}
+.step-icon.f{background:var(--green-dim);color:var(--green);}
+.step-icon.c{background:var(--blue-dim);color:var(--blue);}
+.step-info{flex:1;min-width:0;}
+.step-name{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.step-addr{font-size:11px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.step-arrow{text-align:center;padding:3px 16px;color:var(--muted);font-size:12px;}
+.total-bar{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;}
+.total-bar span{font-size:13px;color:var(--muted);}
+.total-bar strong{font-size:15px;font-weight:700;color:var(--green);}
+.map-btn{display:block;margin:0 16px 12px;padding:14px;background:var(--blue-dim);border:1px solid var(--blue);color:var(--blue);font-family:inherit;font-size:14px;font-weight:600;border-radius:var(--radius);cursor:pointer;text-align:center;width:calc(100% - 32px);}
+.map-btn:active{transform:scale(.97);}
+.err-msg{background:rgba(248,113,113,.1);border:1px solid var(--red);color:var(--red);border-radius:var(--radius-sm);padding:12px 16px;font-size:13px;margin:16px;}
+
+/* Pending (one-time search items) */
+.pending-item{display:flex;align-items:center;gap:8px;background:var(--surface);border:0.5px solid var(--border2);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:6px;}
+.pending-info{flex:1;min-width:0;}
+.pending-name{font-size:13px;font-weight:500;}
+.pending-addr{font-size:11px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.del-x{background:none;border:none;color:var(--muted);font-size:20px;line-height:1;cursor:pointer;padding:0 2px;}
+
+/* Modal */
+#modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;align-items:flex-end;justify-content:center;}
+#modal-overlay.open{display:flex;}
+#modal{background:var(--surface);border-radius:var(--radius) var(--radius) 0 0;width:100%;max-height:82vh;display:flex;flex-direction:column;padding-bottom:var(--safe-bottom);}
+#modal-header{display:flex;align-items:center;padding:16px 16px 12px;border-bottom:0.5px solid var(--border);}
+#modal-title{flex:1;font-size:15px;font-weight:600;}
+#modal-close{background:none;border:none;color:var(--muted);font-size:24px;cursor:pointer;line-height:1;}
+#modal-name-row{display:flex;gap:8px;align-items:center;padding:12px 16px 0;}
+#modal-name-label{font-size:12px;color:var(--muted);white-space:nowrap;}
+#modal-name-input{flex:1;background:var(--surface2);border:0.5px solid var(--border2);border-radius:var(--radius-sm);padding:8px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none;}
+#modal-name-input::placeholder{color:var(--muted);}
+#modal-search-row{display:flex;gap:8px;padding:10px 16px;}
+#modal-input{flex:1;background:var(--surface2);border:0.5px solid var(--border2);border-radius:var(--radius-sm);padding:10px 12px;color:var(--text);font-family:inherit;font-size:14px;outline:none;}
+#modal-input::placeholder{color:var(--muted);}
+#modal-search-btn{padding:10px 16px;background:var(--green);color:#0a1a0a;border:none;border-radius:var(--radius-sm);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;}
+#modal-results{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.modal-status{padding:20px 16px;text-align:center;font-size:13px;color:var(--muted);}
+.sri{padding:14px 16px;border-bottom:0.5px solid var(--border);cursor:pointer;}
+.sri:active{background:var(--surface2);}
+.sri-road{font-size:14px;font-weight:500;}
+.sri-jibun{font-size:12px;color:var(--muted);margin-top:3px;}
+.sri-zip{font-size:11px;color:var(--muted);margin-top:2px;}
+
+/* Manage */
+.manage-item{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:0.5px solid var(--border);}
+.manage-info{flex:1;min-width:0;}
+.manage-name{font-size:14px;font-weight:500;}
+.manage-addr{font-size:11px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.manage-del{background:none;border:none;color:var(--red);font-size:18px;cursor:pointer;padding:2px 4px;}
+.save-btn{width:100%;padding:12px;background:var(--surface2);border:1px solid var(--border2);color:var(--text);font-family:inherit;font-size:13px;font-weight:500;border-radius:var(--radius-sm);cursor:pointer;margin-top:10px;}
+.save-btn:active{background:var(--surface);}
+.tip-box{margin:16px;background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;}
+.tip-box p{font-size:12px;color:var(--muted);line-height:1.8;}
+.tip-box strong{color:var(--amber);}
+
+/* Guide */
+.guide-card{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:10px;}
+.guide-num{font-size:22px;margin-bottom:6px;}
+.guide-title{font-size:14px;font-weight:600;margin-bottom:5px;}
+.guide-desc{font-size:13px;color:var(--muted);line-height:1.7;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="header">
+    <h1>납품 경로 최적화</h1>
+    <p>공장 → 납품처 최적 동선 계산</p>
+  </div>
+  <div id="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('route')">경로 계산</button>
+    <button class="tab-btn" onclick="switchTab('manage')">장소 관리</button>
+    <button class="tab-btn" onclick="switchTab('guide')">설치 안내</button>
+  </div>
+  <div id="content">
+
+    <!-- 경로 계산 -->
+    <div id="tab-route">
+      <div class="section">
+        <div class="section-label">공장</div>
+        <div class="chip-grid" id="factory-chips"></div>
+        <div id="factory-pending"></div>
+        <button class="add-row-btn" onclick="openModal('factory')">+ 주소로 공장 검색해서 추가</button>
+      </div>
+      <div class="section" style="margin-top:20px;">
+        <div class="section-label">납품처</div>
+        <div class="chip-grid" id="client-chips"></div>
+        <div id="client-pending"></div>
+        <button class="add-row-btn" onclick="openModal('client')">+ 주소로 납품처 검색해서 추가</button>
+      </div>
+      <button id="calc-btn" onclick="calculate()">최적 경로 계산</button>
+      <div id="result-area"></div>
+    </div>
+
+    <!-- 장소 관리 -->
+    <div id="tab-manage" style="display:none;">
+      <div class="section">
+        <div class="section-label">저장된 공장</div>
+        <div id="factory-manage-list"></div>
+        <button class="save-btn" onclick="openModal('manage-factory')">+ 주소로 공장 추가 및 저장</button>
+      </div>
+      <div class="section" style="margin-top:24px;">
+        <div class="section-label">저장된 납품처</div>
+        <div id="client-manage-list"></div>
+        <button class="save-btn" onclick="openModal('manage-client')">+ 주소로 납품처 추가 및 저장</button>
+      </div>
+      <div class="tip-box">
+        <p><strong>장소 관리</strong>에서 저장한 공장·납품처는<br>
+        경로 계산 탭에서 칩으로 빠르게 선택할 수 있어요.<br>
+        데이터는 이 기기에 영구 저장됩니다.</p>
+      </div>
+    </div>
+
+    <!-- 설치 안내 -->
+    <div id="tab-guide" style="display:none;">
+      <div class="section"><div class="section-label">아이폰 홈 화면에 설치</div></div>
+      <div style="padding:12px 16px 0;display:flex;flex-direction:column;gap:10px;">
+        <div class="guide-card">
+          <div class="guide-num">1️⃣</div>
+          <div class="guide-title">사파리(Safari)로 열기</div>
+          <div class="guide-desc">반드시 사파리로 열어야 합니다. 크롬에서는 홈 화면 추가가 되지 않아요.</div>
+        </div>
+        <div class="guide-card">
+          <div class="guide-num">2️⃣</div>
+          <div class="guide-title">공유 버튼 누르기</div>
+          <div class="guide-desc">화면 하단 가운데 <strong style="color:var(--blue);">□↑ 공유 버튼</strong>을 누르세요.</div>
+        </div>
+        <div class="guide-card">
+          <div class="guide-num">3️⃣</div>
+          <div class="guide-title">"홈 화면에 추가" 선택</div>
+          <div class="guide-desc">스크롤해서 <strong style="color:var(--green);">"홈 화면에 추가"</strong>를 탭하고 오른쪽 위 "추가"를 눌러요.</div>
+        </div>
+        <div class="guide-card">
+          <div class="guide-num">4️⃣</div>
+          <div class="guide-title">완료! 앱처럼 사용</div>
+          <div class="guide-desc">홈 화면 아이콘을 탭하면 전체화면 앱으로 실행됩니다.<br>주소 검색은 인터넷이 필요하고, 저장된 장소는 오프라인에서도 사용 가능해요.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- 주소 검색 모달 -->
+<div id="modal-overlay" onclick="handleOverlayClick(event)">
+  <div id="modal">
+    <div id="modal-header">
+      <span id="modal-title">주소 검색</span>
+      <button id="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div id="modal-name-row">
+      <span id="modal-name-label">이름</span>
+      <input id="modal-name-input" placeholder="예: 공장1(성수), 우주사무기">
+    </div>
+    <div id="modal-search-row">
+      <input id="modal-input" placeholder="도로명 또는 지번 주소 입력" onkeydown="if(event.key==='Enter')searchAddress()">
+      <button id="modal-search-btn" onclick="searchAddress()">검색</button>
+    </div>
+    <div id="modal-results">
+      <div class="modal-status">주소를 입력하고 검색 버튼을 누르세요</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const DEFAULT_FACTORIES = [
+  {name:"공장1(성수)", addr:"서울 성동구 성수이로 78", lat:37.5470, lng:127.0563},
+  {name:"공장2(영등포)", addr:"서울 영등포구 영등포로 379", lat:37.5172, lng:126.9075}
+];
+const DEFAULT_CLIENTS = [
+  {name:"우주사무기", addr:"서울 중구 을지로 100", lat:37.5660, lng:126.9784},
+  {name:"아이티", addr:"서울 중구 청계천로 100", lat:37.5425, lng:126.9656},
+  {name:"북원", addr:"서울 강서구 화곡로 302", lat:37.5551, lng:126.8351}
+];
+
+function loadData() {
+  try { return { factories: JSON.parse(localStorage.getItem('factories'))||DEFAULT_FACTORIES, clients: JSON.parse(localStorage.getItem('clients'))||DEFAULT_CLIENTS }; }
+  catch(e) { return { factories:[...DEFAULT_FACTORIES], clients:[...DEFAULT_CLIENTS] }; }
+}
+function saveData() {
+  localStorage.setItem('factories', JSON.stringify(data.factories));
+  localStorage.setItem('clients', JSON.stringify(data.clients));
+}
+
+let data = loadData();
+let selF=[], selC=[];
+let pendingF=[], pendingC=[];
+let modalMode='';
+
+// ── 탭 전환 ──────────────────────────────────────────
+function switchTab(tab) {
+  ['route','manage','guide'].forEach(t => document.getElementById('tab-'+t).style.display = t===tab?'':'none');
+  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active',['route','manage','guide'][i]===tab));
+  if(tab==='manage') renderManage();
+  if(tab==='route') renderChips();
+}
+
+// ── 칩 렌더링 ─────────────────────────────────────────
+function renderChips() {
+  const fg = document.getElementById('factory-chips');
+  fg.innerHTML = data.factories.length
+    ? data.factories.map((f,i)=>`<button class="chip ${selF.includes(i)?'sel-f':''}" onclick="toggleSel('f',${i})" id="fc${i}">${f.name}</button>`).join('')
+    : '<span class="no-places">저장된 공장 없음 — 아래에서 추가하세요</span>';
+
+  const cg = document.getElementById('client-chips');
+  cg.innerHTML = data.clients.length
+    ? data.clients.map((c,i)=>`<button class="chip ${selC.includes(i)?'sel-c':''}" onclick="toggleSel('c',${i})" id="cc${i}">${c.name}</button>`).join('')
+    : '<span class="no-places">저장된 납품처 없음 — 아래에서 추가하세요</span>';
+
+  renderPending();
+}
+function toggleSel(type,i) {
+  const sel = type==='f'?selF:selC;
+  const idx = sel.indexOf(i);
+  idx>-1 ? sel.splice(idx,1) : sel.push(i);
+  document.getElementById((type==='f'?'fc':'cc')+i).className = 'chip ' + (sel.includes(i)?(type==='f'?'sel-f':'sel-c'):'');
+}
+function renderPending() {
+  document.getElementById('factory-pending').innerHTML = pendingF.map((p,i)=>`
+    <div class="pending-item">
+      <div class="pending-info"><div class="pending-name">${p.name}</div><div class="pending-addr">${p.addr}</div></div>
+      <button class="del-x" onclick="pendingF.splice(${i},1);renderPending()">×</button>
+    </div>`).join('');
+  document.getElementById('client-pending').innerHTML = pendingC.map((p,i)=>`
+    <div class="pending-item">
+      <div class="pending-info"><div class="pending-name">${p.name}</div><div class="pending-addr">${p.addr}</div></div>
+      <button class="del-x" onclick="pendingC.splice(${i},1);renderPending()">×</button>
+    </div>`).join('');
+}
+
+// ── 모달 ─────────────────────────────────────────────
+function openModal(mode) {
+  modalMode = mode;
+  document.getElementById('modal-title').textContent = (mode.includes('factory')?'공장':'납품처')+' 주소 검색';
+  document.getElementById('modal-input').value = '';
+  document.getElementById('modal-name-input').value = '';
+  document.getElementById('modal-results').innerHTML = '<div class="modal-status">주소를 입력하고 검색 버튼을 누르세요</div>';
+  document.getElementById('modal-overlay').classList.add('open');
+  setTimeout(()=>document.getElementById('modal-name-input').focus(), 300);
+}
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+function handleOverlayClick(e) { if(e.target===document.getElementById('modal-overlay')) closeModal(); }
+
+// ── 주소 검색 (행정안전부 도로명주소 API) ─────────────
+async function searchAddress() {
+  const q = document.getElementById('modal-input').value.trim();
+  if(!q) return;
+  const resultsEl = document.getElementById('modal-results');
+  resultsEl.innerHTML = '<div class="modal-status">검색 중...</div>';
+  try {
+    // 행정안전부 도로명주소 API — 개발자 테스트 키 (공개 제공)
+    const key = 'devU01TX0FVVEgyMDI1MDQyMDE0NTcwNzExNTUxNzc=';
+    const url = `https://business.juso.go.kr/addrlink/addrLinkApi.do?currentPage=1&countPerPage=10&keyword=${encodeURIComponent(q)}&confmKey=${key}&resultType=json`;
+    const res = await fetch(url);
+    const json = await res.json();
+    const list = json?.results?.juso || [];
+    if(!list.length) {
+      resultsEl.innerHTML = '<div class="modal-status">검색 결과가 없어요.<br>다른 키워드로 시도해보세요.</div>';
+      return;
+    }
+    resultsEl.innerHTML = list.map(r=>`
+      <div class="sri" onclick="selectAddress('${esc(r.roadAddr)}','${esc(r.jibunAddr)}')">
+        <div class="sri-road">${r.roadAddr}</div>
+        <div class="sri-jibun">지번: ${r.jibunAddr}</div>
+        <div class="sri-zip">우편번호 ${r.zipNo}</div>
+      </div>`).join('');
+  } catch(e) {
+    resultsEl.innerHTML = '<div class="modal-status">검색 오류가 발생했어요.<br>인터넷 연결을 확인해주세요.</div>';
+  }
+}
+function esc(s) { return (s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+
+// ── 주소 선택 → 좌표 변환 (OSM Nominatim, 무료/키 불필요) ──
+async function selectAddress(roadAddr, jibunAddr) {
+  const nameVal = document.getElementById('modal-name-input').value.trim();
+  const name = nameVal || roadAddr.split(' ').slice(0,3).join(' ');
+  const resultsEl = document.getElementById('modal-results');
+  resultsEl.innerHTML = '<div class="modal-status">좌표 변환 중…</div>';
+
+  let lat=0, lng=0;
+  try {
+    const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(roadAddr)}&format=json&limit=1&countrycodes=kr`, {headers:{'Accept-Language':'ko'}});
+    const geoJson = await geoRes.json();
+    if(geoJson.length){ lat=parseFloat(geoJson[0].lat); lng=parseFloat(geoJson[0].lon); }
+    // fallback: try jibun address
+    if(!lat && jibunAddr) {
+      const geoRes2 = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(jibunAddr)}&format=json&limit=1&countrycodes=kr`, {headers:{'Accept-Language':'ko'}});
+      const geoJson2 = await geoRes2.json();
+      if(geoJson2.length){ lat=parseFloat(geoJson2[0].lat); lng=parseFloat(geoJson2[0].lon); }
+    }
+  } catch(e) {}
+
+  const place = {name, addr:roadAddr, lat, lng};
+  if(modalMode==='factory')        { pendingF.push(place); renderPending(); }
+  else if(modalMode==='client')    { pendingC.push(place); renderPending(); }
+  else if(modalMode==='manage-factory') { data.factories.push(place); saveData(); renderManage(); renderChips(); }
+  else if(modalMode==='manage-client')  { data.clients.push(place); saveData(); renderManage(); renderChips(); }
+  closeModal();
+}
+
+// ── 경로 계산 ─────────────────────────────────────────
+function haversine(a,b) {
+  const R=6371, r=x=>x*Math.PI/180;
+  const dL=r(b.lat-a.lat), dG=r(b.lng-a.lng);
+  return R*2*Math.asin(Math.sqrt(Math.sin(dL/2)**2+Math.cos(r(a.lat))*Math.cos(r(b.lat))*Math.sin(dG/2)**2))*1.25;
+}
+
+function calculate() {
+  const factories = [...selF.map(i=>data.factories[i]), ...pendingF];
+  const clients   = [...selC.map(i=>data.clients[i]),   ...pendingC];
+  const area = document.getElementById('result-area');
+
+  if(!factories.length||!clients.length) {
+    area.innerHTML='<div class="err-msg">공장과 납품처를 1개 이상 선택하세요.</div>'; return;
+  }
+  const noCoord = [...factories,...clients].filter(p=>!p.lat&&!p.lng);
+  if(noCoord.length) {
+    area.innerHTML=`<div class="err-msg">좌표를 찾지 못한 장소가 있어요:<br><strong>${noCoord.map(p=>p.name).join(', ')}</strong><br>주소를 다시 검색해 추가해보세요.</div>`; return;
+  }
+
+  // Greedy nearest neighbor from last factory
+  const path=[...factories];
+  let cur=path[path.length-1];
+  const remain=[...clients];
+  while(remain.length){
+    let bi=0, bd=Infinity;
+    remain.forEach((c,i)=>{const d=haversine(cur,c);if(d<bd){bd=d;bi=i;}});
+    path.push(remain[bi]); cur=remain[bi]; remain.splice(bi,1);
+  }
+
+  let total=0; const segs=[];
+  for(let i=1;i<path.length;i++){const d=haversine(path[i-1],path[i]);total+=d;segs.push(d);}
+  const mins=Math.round(total/30*60);
+  const facNames=new Set(factories.map(f=>f.name));
+
+  let html='<div class="result-box"><div class="result-header"><h3>최적 경로</h3></div>';
+  path.forEach((p,i)=>{
+    const isFac=facNames.has(p.name);
+    if(i>0) html+=`<div class="step-arrow">▾ ${segs[i-1].toFixed(1)}km</div>`;
+    html+=`<div class="route-step">
+      <div class="step-icon ${isFac?'f':'c'}">${isFac?'공장':'납품'}</div>
+      <div class="step-info">
+        <div class="step-name">${p.name}</div>
+        <div class="step-addr">${p.addr||''}</div>
+      </div>
+    </div>`;
+  });
+  html+=`<div class="total-bar"><span>총 이동거리</span><strong>${total.toFixed(1)}km · 약 ${mins}분</strong></div></div>`;
+
+  buildKakaoLinks(path).forEach((url,i,arr)=>{
+    html+=`<button class="map-btn" onclick="window.location.href='${url}'">카카오맵 길찾기${arr.length>1?' ('+(i+1)+'/'+arr.length+')':''} →</button>`;
+  });
+
+  area.innerHTML=html;
+  document.getElementById('result-area').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function buildKakaoLinks(path) {
+  const links=[], sz=6;
+  for(let i=0;i<path.length-1;i+=sz-1){
+    const chunk=path.slice(i,i+sz);
+    if(chunk.length<2) break;
+    const o=chunk[0], d=chunk[chunk.length-1];
+    const via=chunk.slice(1,-1).map(p=>`${p.lat},${p.lng}`).join('/');
+    let url=`kakaomap://route?sp=${o.lat},${o.lng}&ep=${d.lat},${d.lng}&by=CAR`;
+    if(via) url+=`&via=${via}`;
+    links.push(url);
+  }
+  return links;
+}
+
+// ── 장소 관리 렌더링 ─────────────────────────────────
+function renderManage() {
+  ['factory','client'].forEach(type=>{
+    const arr=type==='factory'?data.factories:data.clients;
+    document.getElementById(type+'-manage-list').innerHTML = arr.length
+      ? arr.map((p,i)=>`<div class="manage-item">
+          <div class="manage-info"><div class="manage-name">${p.name}</div><div class="manage-addr">${p.addr||''}</div></div>
+          <button class="manage-del" onclick="deletePlace('${type}',${i})">×</button>
+        </div>`).join('')
+      : '<p style="font-size:13px;color:var(--muted);padding:8px 0;">저장된 장소 없음</p>';
+  });
+}
+function deletePlace(type,i) {
+  if(!confirm('이 장소를 삭제할까요?')) return;
+  (type==='factory'?data.factories:data.clients).splice(i,1);
+  saveData(); selF=[]; selC=[];
+  renderManage(); renderChips();
+}
+
+// ── 초기화 ───────────────────────────────────────────
+renderChips();
+if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+</script>
+</body>
+</html>
